@@ -1,0 +1,5 @@
+# Runtime manifest for local-sales-warehouse v0.1.0.
+#
+# The only third-party runtime dependency is DuckDB, pinned exactly. The
+# application runs on Python 3.12 and uses the standard library otherwise.
+duckdb==1.4.3

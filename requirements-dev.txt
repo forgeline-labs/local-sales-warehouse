@@ -1,0 +1,5 @@
+# Development manifest for local-sales-warehouse v0.1.0.
+#
+# Tests use the Python standard library (unittest), so there is no test
+# dependency to install. Linting and formatting are pinned exactly.
+ruff==0.17.5
