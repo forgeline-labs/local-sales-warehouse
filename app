@@ -265,8 +265,10 @@ def _table_state(connection) -> str:
     ).fetchall()
     if not rows:
         return "missing"
-    actual = [(row[0], row[1], bool(row[2])) for row in rows]
-    expected = [(name, data_type, False) for name, data_type in TABLE_COLUMNS]
+    # Column order is not part of the compatibility contract here; the names,
+    # types, nullability and key constraints are.
+    actual = {row[0]: (row[1], bool(row[2])) for row in rows}
+    expected = {name: (data_type, False) for name, data_type in TABLE_COLUMNS}
     if actual != expected:
         return "incompatible"
 

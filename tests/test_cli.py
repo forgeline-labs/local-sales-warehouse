@@ -552,6 +552,23 @@ class DurabilityTests(WarehouseTestCase):
         )
         self.assertEqual([list(row[0]) for row in primary_key], [["id"]])
 
+    def test_equivalent_table_with_different_column_order_is_accepted(self):
+        duckdb = try_import_duckdb()
+        if duckdb is None:  # pragma: no cover
+            self.skipTest("duckdb is not importable")
+        db = self.db_path("reordered.duckdb")
+        connection = duckdb.connect(db)
+        try:
+            connection.execute(
+                "CREATE TABLE orders("
+                "customer VARCHAR NOT NULL, id VARCHAR PRIMARY KEY, "
+                "cents HUGEINT NOT NULL, date DATE NOT NULL)"
+            )
+        finally:
+            connection.close()
+        self.load([order("o1", "c1", "2026-01-01", 5)], db=db)
+        self.assertEqual(self.summary(db=db)["months"][0]["cents"], "5")
+
 
 if __name__ == "__main__":
     unittest.main()
