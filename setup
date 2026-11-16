@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Prepare the isolated .venv used by the local-sales-warehouse entrypoint.
+
+Run as ``./setup`` or ``python setup``. The script is idempotent: running it
+repeatedly leaves the same environment in place and only re-asserts the
+pinned runtime dependency.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import venv
+
+
+def _venv_python(venv_dir: str) -> str:
+    return os.path.join(venv_dir, "bin", "python")
+
+
+def main() -> int:
+    root = os.path.dirname(os.path.abspath(__file__))
+    venv_dir = os.path.join(root, ".venv")
+    python = _venv_python(venv_dir)
+
+    if not os.path.isfile(python):
+        print(f"setup: creating {venv_dir}")
+        venv.EnvBuilder(with_pip=True, clear=False).create(venv_dir)
+
+    requirements = os.path.join(root, "requirements.txt")
+    print(f"setup: installing runtime dependencies from {requirements}")
+    subprocess.check_call(
+        [
+            python,
+            "-m",
+            "pip",
+            "install",
+            "--disable-pip-version-check",
+            "--requirement",
+            requirements,
+        ]
+    )
+    print("setup: ready")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

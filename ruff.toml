@@ -1,0 +1,10 @@
+target-version = "py312"
+line-length = 100
+extend-exclude = [".venv"]
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[lint.per-file-ignores]
+# The entrypoint has no .py suffix, so ruff treats it as a script.
+"app" = ["E501"]
