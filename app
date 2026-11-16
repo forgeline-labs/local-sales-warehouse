@@ -241,6 +241,15 @@ def _database_parent(db_path: str) -> str:
 
 
 def _check_db_target(db_path: str) -> None:
+    # DuckDB accepts connection identifiers that are not durable local files.
+    if (
+        not db_path
+        or "\x00" in db_path
+        or db_path.startswith(":memory:")
+        or db_path == ":default:"
+        or re.match(r"(?i)(?:md|motherduck|https?|s3|gs|gcs|az|azure|r2|hf):", db_path)
+    ):
+        raise CliError(3, "invalid database file path")
     if os.path.isdir(db_path):
         raise CliError(3, "database path is a directory")
     if not os.path.isdir(_database_parent(db_path)):
@@ -250,7 +259,7 @@ def _check_db_target(db_path: str) -> None:
 def _connect(db_path: str, read_only: bool):
     duckdb = _duckdb()
     try:
-        return duckdb.connect(db_path, read_only=read_only)
+        return duckdb.connect(os.path.abspath(db_path), read_only=read_only)
     except Exception:
         raise CliError(3, "cannot open database") from None
 
@@ -358,11 +367,9 @@ def load_orders(input_path: str, db_path: str) -> dict[str, int]:
 def summarize(db_path: str, month: str | None) -> list[dict]:
     if month is not None:
         _validate_month(month)
+    _check_db_target(db_path)
     if not os.path.exists(db_path):
         raise CliError(3, "database does not exist")
-    if os.path.isdir(db_path):
-        raise CliError(3, "database path is a directory")
-
     connection = _connect(db_path, read_only=True)
     try:
         if _table_state(connection) != "compatible":
@@ -416,7 +423,7 @@ def _split_command(args: list[str]) -> tuple[list[str], dict[str, str]]:
         if token.startswith("-") and token != "-":
             name, separator, inline = token.partition("=")
             if name not in ("--db", "--month"):
-                raise CliError(2, f"unknown option: {name}")
+                raise CliError(2, "unknown option")
             if name in options:
                 raise CliError(2, f"duplicate option: {name}")
             if separator:
@@ -474,7 +481,7 @@ def run(argv: list[str]) -> int:
         months = summarize(db_path, options.get("--month"))
         _emit({"months": months})
         return 0
-    raise CliError(2, f"unknown command: {command}")
+    raise CliError(2, "unknown command")
 
 
 def main() -> int:
@@ -485,7 +492,12 @@ def main() -> int:
         sys.stderr.write(f"error: {error.message}\n")
         sys.stderr.flush()
         return error.code
-    except BrokenPipeError:
+    except OSError:
+        # Redirect the descriptor before Python retries its buffered flush at exit.
+        with open(os.devnull, "w") as sink:
+            os.dup2(sink.fileno(), sys.stdout.fileno())
+        sys.stderr.write("error: cannot write output\n")
+        sys.stderr.flush()
         return 3
     except KeyboardInterrupt:
         return 3
