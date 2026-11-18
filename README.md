@@ -28,57 +28,26 @@ dbt pipelines, Parquet files and multi-writer concurrency.
 
 ## Quickstart
 
-The repository is self-contained; preparation installs the pinned runtime
-dependency into `.venv`.
+Requires Python 3.12. Run from the repository root in a POSIX shell.
+The new checked-in `fixtures/orders.json` contains two fictitious orders.
+Start with no `sales-example.duckdb` file; the load creates it. Preparation
+installs the pinned DuckDB dependency (network only during setup); its
+environment-specific output is saved in `setup.log`. Stop if setup fails.
+The last command demonstrates an invalid month (exit 2).
 
-```sh
-./setup
-```
-
-`python setup` is equivalent. The command is idempotent.
-
-Create an input file and import it:
-
-```sh
-printf '%s' '[{"id":"o1","customer":"c1","date":"2026-01-01","cents":100},{"id":"o2","customer":"c2","date":"2026-01-15","cents":250},{"id":"o3","customer":"c1","date":"2026-02-01","cents":9007199254740991}]' > orders.json
-./app load orders.json --db sales.duckdb
-```
-
-Real output (one JSON document, one line, trailing LF):
-
-```json
-{"inserted":3,"unchanged":0}
-```
-
-Importing the same file again:
-
-```json
-{"inserted":0,"unchanged":3}
-```
-
-Monthly summary:
-
-```sh
-./app summary --db sales.duckdb
-```
-
-```json
-{"months":[{"month":"2026-01","orders":2,"customers":2,"cents":"350"},{"month":"2026-02","orders":1,"customers":1,"cents":"9007199254740991"}]}
-```
-
-A single month:
-
-```sh
-./app summary --db sales.duckdb --month 2026-01
-```
-
-```json
+```console
+$ python setup > setup.log 2>&1
+$ cat fixtures/orders.json
+[{"id":"o1","customer":"c1","date":"2026-01-01","cents":100},{"id":"o2","customer":"c2","date":"2026-01-15","cents":250}]
+$ python app load fixtures/orders.json --db sales-example.duckdb
+{"inserted":2,"unchanged":0}
+$ python app summary --db sales-example.duckdb
 {"months":[{"month":"2026-01","orders":2,"customers":2,"cents":"350"}]}
+$ python app summary --db sales-example.duckdb --month 2026-13
+error: invalid month, expected YYYY-MM
+$ echo $?
+2
 ```
-
-Both `./app ...` (executable script, `#!/usr/bin/env python3`) and
-`python app ...` are equivalent; the entrypoint hands control to the prepared
-`.venv` when needed.
 
 ## CLI
 
